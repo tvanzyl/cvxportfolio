@@ -46,7 +46,7 @@ from .costs import BaseCost
 # Also could try jitting with numba.
 
 
-class MarketSimulator():
+class MarketSimulator:
     logger = None
 
     def __init__(self, market_returns, costs,
@@ -106,17 +106,16 @@ class MarketSimulator():
         return h_next, u
 
     def run_backtest(self, initial_portfolio, start_time, end_time,
-                     policy, loglevel=logging.WARNING):
+                     policy, ppy=252, loglevel=logging.WARNING):
         """Backtest a single policy.
         """
         logging.basicConfig(level=loglevel)
 
-        results = SimulationResult(initial_portfolio=copy.copy(
-            initial_portfolio),
-            policy=policy, cash_key=self.cash_key,
-            simulator=self)
+        results = SimulationResult(initial_portfolio=copy.copy(initial_portfolio), policy=policy,
+                                   cash_key=self.cash_key, simulator=self, ppy=ppy)
         h = initial_portfolio
 
+        # TODO: How can the start_time/end_time format be more flexible?
         simulation_times = self.market_returns.index[
             (self.market_returns.index >= start_time) &
             (self.market_returns.index <= end_time)]
@@ -127,7 +126,7 @@ class MarketSimulator():
             logging.info('Getting trades at time %s' % t)
             start = time.time()
             try:
-                u = policy.get_trades(h, t)
+                u = policy.get_trades(h, t, results)
             except cvx.SolverError:
                 logging.warning(
                     'Solver failed on timestamp %s. Default to no trades.' % t)
@@ -151,14 +150,14 @@ class MarketSimulator():
         return results
 
     def run_multiple_backtest(self, initial_portf, start_time,
-                              end_time, policies,
+                              end_time, policies, ppy=252,
                               loglevel=logging.WARNING, parallel=True):
         """Backtest multiple policies.
         """
 
         def _run_backtest(policy):
             return self.run_backtest(initial_portf, start_time, end_time,
-                                     policy, loglevel=loglevel)
+                                     policy, ppy=ppy, loglevel=loglevel)
 
         num_workers = min(multiprocess.cpu_count(), len(policies))
         if parallel:
@@ -209,6 +208,7 @@ class MarketSimulator():
             selector: A map from SimulationResult to time series.
             delta: the fractional deviation.
             fit: the type of fit to perform.
+            parallel: parallel computation selected bool
         Returns:
             A dict of alpha source to return series.
         """

@@ -37,7 +37,7 @@ import pandas as pd
 
 from .risks import locator
 
-__all__ = ['LongOnly', 'LeverageLimit', 'LongCash', 'DollarNeutral', 'MaxTrade',
+__all__ = ['LongOnly', 'LeverageLimit', 'LongCash', 'ZeroCash', 'DollarNeutral', 'MaxTrade',
            'MaxWeights', 'MinWeights', 'FactorMaxLimit', 'FactorMinLimit',
            'FixedAlpha']
 
@@ -105,6 +105,23 @@ class LongOnly(BaseConstraint):
           w_plus: holdings
         """
         return w_plus >= 0
+
+
+class ZeroCash(BaseConstraint):
+    """Requires that cash be zero, i.e., portfolio fully invested.
+    """
+
+    def __init__(self, **kwargs):
+        super(ZeroCash, self).__init__(**kwargs)
+
+    def _weight_expr(self, t, w_plus, z, v):
+        """Returns a list of holding constraints.
+
+        Args:
+          t: time
+          w_plus: holdings
+        """
+        return w_plus[-1] == 0
 
 
 class LeverageLimit(BaseConstraint):
